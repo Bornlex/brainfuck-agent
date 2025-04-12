@@ -1,0 +1,3 @@
+[submodule "brainfuck"]
+	path = brainfuck
+	url = https://github.com/Bornlex/brainfuck.git
