@@ -7,7 +7,7 @@ from typing import Dict, Optional, Tuple, Union
 
 
 @dataclass
-class ModelArgs:
+class LlamaArgs:
     hidden_size: int
     num_hidden_layers: int
     intermediate_size: int
@@ -126,7 +126,7 @@ class LoRALinear(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: LlamaArgs):
         super().__init__()
 
         dim = args.hidden_size
@@ -198,7 +198,7 @@ class MLP(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: LlamaArgs):
         super().__init__()
         self.num_attention_heads = args.num_attention_heads
         self.hidden_size = args.hidden_size
@@ -225,7 +225,7 @@ class TransformerBlock(nn.Module):
 
 
 class LlamaModel(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: LlamaArgs):
         super().__init__()
         self.args = args
         self.vocab_size = args.vocab_size
@@ -259,7 +259,7 @@ class LlamaModel(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: LlamaArgs):
         super().__init__()
         self.model = LlamaModel(args)
         self.lm_head = nn.Linear(args.hidden_size, args.vocab_size, bias=False)

@@ -5,7 +5,7 @@ import mlx.core as mx
 import mlx.nn as nn
 from pathlib import Path
 import transformers
-from typing import Generator
+from typing import Generator, Tuple
 
 from src import llama
 
@@ -71,22 +71,32 @@ def save_model(save_dir: str, weights, tokenizer, config):
         )
 
 
-def load(path_or_hf_repo: str, tokenizer_config: dict | None = None):
-    if tokenizer_config is None:
-        tokenizer_config = {}
+def load_from_huggingface(hf_repo: str) -> Path:
+    return Path(
+        snapshot_download(
+            repo_id=hf_repo,
+            allow_patterns=["*.json", "*.safetensors", "tokenizer.model"],
+        )
+    )
 
+
+def read_config(file_path: Path) -> Tuple[llama.LlamaArgs, dict | None]:
+    with open(file_path, "r") as f:
+        config = json.loads(f.read())
+
+    return llama.LlamaArgs.from_dict(config), config.get("quantization", None)
+
+
+def quantize(model, quantization: dict):
+    pass
+
+
+def load(path_or_hf_repo: str):
     model_path = Path(path_or_hf_repo)
     if not model_path.exists():
-        model_path = Path(
-            snapshot_download(
-                repo_id=path_or_hf_repo,
-                allow_patterns=["*.json", "*.safetensors", "tokenizer.model"],
-            )
-        )
+        model_path = load_from_huggingface(path_or_hf_repo)
 
-    with open(model_path / "config.json", "r") as f:
-        config = json.loads(f.read())
-        quantization = config.get("quantization", None)
+    llama_args, quantization = read_config(model_path / "config.json")
 
     weight_files = glob.glob(str(model_path / "*.safetensors"))
     if len(weight_files) == 0:
@@ -96,8 +106,7 @@ def load(path_or_hf_repo: str, tokenizer_config: dict | None = None):
     for wf in weight_files:
         weights.update(mx.load(wf).items())
 
-    model_args = llama.ModelArgs.from_dict(config)
-    model = llama.Model(model_args)
+    model = llama.Model(llama_args)
     if quantization is not None:
         print('model is not quantized yet, quantizing now')
         class_predicate = (
@@ -113,11 +122,9 @@ def load(path_or_hf_repo: str, tokenizer_config: dict | None = None):
     model.load_weights(list(weights.items()))
 
     mx.eval(model.parameters())
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_path, **tokenizer_config
-    )
+    tokenizer = transformers.AutoTokenizer.from_pretrained(model_path)
 
-    return model, tokenizer, config
+    return model, tokenizer, llama_args
 
 
 def generate(
